@@ -2,20 +2,20 @@ package lexer
 
 import "waiig/token"
 
-type lexer struct {
+type Lexer struct {
 	input        string
 	position     int
 	readPosition int
 	ch           byte
 }
 
-func New(input string) *lexer {
-	l := &lexer{input: input}
+func New(input string) *Lexer {
+	l := &Lexer{input: input}
 	l.readChar()
 	return l
 }
 
-func (l *lexer) readChar() {
+func (l *Lexer) readChar() {
 	if l.readPosition >= len(l.input) {
 		l.ch = 0
 	} else {
@@ -25,8 +25,10 @@ func (l *lexer) readChar() {
 	l.readPosition += 1
 }
 
-func (l *lexer) NextToken() token.Token {
+func (l *Lexer) NextToken() token.Token {
 	var tok token.Token
+
+	l.skipWhitespace()
 
 	switch l.ch {
 	case '=':
@@ -48,6 +50,18 @@ func (l *lexer) NextToken() token.Token {
 	case 0:
 		tok.Literal = ""
 		tok.Type = token.EOF
+	default:
+		if isLetter(l.ch) {
+			tok.Literal = l.readIdentifier()
+			tok.Type = token.LookupIdent(tok.Literal)
+			return tok
+		}
+		if isDigit(l.ch) {
+			tok.Type = token.INT
+			tok.Literal = l.readNumber()
+			return tok
+		}
+		tok = newToken(token.ILLEGAL, l.ch)
 	}
 
 	l.readChar()
@@ -56,4 +70,33 @@ func (l *lexer) NextToken() token.Token {
 
 func newToken(tokenType token.TokenType, ch byte) token.Token {
 	return token.Token{Type: tokenType, Literal: string(ch)}
+}
+
+func (l *Lexer) readIdentifier() string {
+	position := l.position
+	for isLetter(l.ch) {
+		l.readChar()
+	}
+	return l.input[position:l.position]
+}
+
+func (l *Lexer) readNumber() string {
+	position := l.position
+	for isDigit(l.ch) {
+		l.readChar()
+	}
+	return l.input[position:l.position]
+}
+
+func isDigit(ch byte) bool {
+	return '0' <= ch && ch <= '9'
+}
+func isLetter(ch byte) bool {
+	return 'a' <= ch && ch <= 'z' || ch == '_'
+}
+
+func (l *Lexer) skipWhitespace() {
+	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
+		l.readChar()
+	}
 }
